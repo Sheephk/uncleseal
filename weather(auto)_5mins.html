@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>香港即時天氣 (動態更新版)</title>
+    <style>
+        body {
+            font-family: 'PingFang HK', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #eceff1 0%, #cfd8dc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .weather-card {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        h2 { margin: 0 0 5px; color: #2c3e50; text-align: center; }
+        
+        /* 更新時間與自動刷新提示 */
+        .update-time { 
+            text-align: center; 
+            color: #7f8c8d; 
+            font-size: 0.85rem; 
+            margin-bottom: 25px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #2ecc71;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+
+        /* --- 大圖示區域 (支援多個圖示並排) --- */
+        .main-visual {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        /* 當有警告時，大圖示區域外框變色 */
+        .main-visual.has-warnings {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+        }
+        .icon-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            font-size: 4.5rem; /* 大圖示尺寸 */
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .desc-container {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #34495e;
+            line-height: 1.6;
+        }
+        .warning-text {
+            color: #d35400;
+        }
+
+        /* --- 數據條目 --- */
+        h3 { color: #7f8c8d; font-size: 1.1rem; margin-top: 25px; margin-bottom: 10px; }
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            font-size: 1.1rem;
+            color: #34495e;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        .data-item:last-child { border-bottom: none; }
+        .value { font-weight: 600; color: #007bff; display: flex; align-items: center; gap: 5px;}
+        .place-name { display: flex; align-items: center; gap: 8px; }
+        .error { color: #e74c3c; }
+
+        /* 🟢 新增：小海豹大叔頁尾樣式 */
+        .footer {
+            margin-top: 25px;
+            font-size: 1.20rem;
+            color: #95a5a6;
+            border-top: 1px solid #f1f1f1;
+            padding-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="weather-card">
+        <h2>香港即時天氣</h2>
+        <div class="update-time">
+            <span class="live-dot"></span>
+            <span id="update-time">正在載入...</span>
+        </div>
+
+        <div class="main-visual" id="main-visual-box">
+            <div class="icon-container" id="main-icons">⌛</div>
+            <div class="desc-container" id="main-desc">正在獲取最新天氣數據...</div>
+        </div>
+        
+        <div class="data-item">
+            <span class="place-name">💧 本港相對濕度</span>
+            <span id="hk-humidity" class="value">--%</span>
+        </div>
+
+        <h3>各區即時氣溫</h3>
+        <div id="regions-container"></div>
+
+        <div class="footer">
+            🦭 小海豹大叔
+        </div>
+    </div>
+
+    <script>
+        const url = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc';
+        const targetPlaces = ['深水埗', '青衣', '跑馬地', '啟德跑道公園', '沙田'];
+
+        // 天氣警告對應 Emoji 字典
+        const warningEmojiMap = {
+            "雷暴": "⛈️",
+            "酷熱": "🥵",
+            "寒冷": "🥶",
+            "暴雨": "🌧️",
+            "水浸": "🌊",
+            "季候風": "💨",
+            "山泥傾瀉": "⛰️",
+            "火災危險": "🔥",
+            "霜凍": "❄️",
+            "颱風": "🌀",
+            "烈風": "🌀",
+            "暴風": "🌀"
+        };
+
+        // 根據警告字串尋找對應 Emoji
+        function getWarningEmoji(msg) {
+            for (let key in warningEmojiMap) {
+                if (msg.includes(key)) return warningEmojiMap[key];
+            }
+            return "⚠️"; 
+        }
+
+        // 當沒有警告時，根據沙田溫度生成的預設狀態
+        function getGeneralStatus(temp) {
+            if (temp >= 33) return { icon: "☀️", desc: "天氣酷熱" };
+            if (temp >= 28) return { icon: "🌤️", desc: "天氣炎熱" };
+            if (temp <= 12) return { icon: "❄️", desc: "天氣寒冷" };
+            if (temp <= 18) return { icon: "⛅", desc: "天氣清涼" };
+            return { icon: "😊", desc: "今日體感舒適" };
+        }
+
+        // 核心更新主函數
+        function fetchWeatherData() {
+            fetch(url)
+              .then(response => response.json())
+              .then(data => {
+                
+                // 更新時間與提示文字（設定為 5 分鐘）
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('update-time').textContent = `${timeString} (每 5 分鐘自動刷新)`;
+
+                // 處理大圖示與狀態 (警告優先邏輯)
+                const mainVisualBox = document.getElementById('main-visual-box');
+                const mainIconsContainer = document.getElementById('main-icons');
+                const mainDescContainer = document.getElementById('main-desc');
+
+                if (data.warningMessage && data.warningMessage.length > 0) {
+                    mainVisualBox.classList.add('has-warnings');
+                    let warnings = Array.isArray(data.warningMessage) ? data.warningMessage : [data.warningMessage];
+                    
+                    let iconsHtml = warnings.map(msg => `<span>${getWarningEmoji(msg)}</span>`).join('');
+                    let descHtml = warnings.map(msg => `<div class="warning-text">⚠️ ${msg}</div>`).join('');
+                    
+                    mainIconsContainer.innerHTML = iconsHtml;
+                    mainDescContainer.innerHTML = descHtml;
+                } else {
+                    mainVisualBox.classList.remove('has-warnings');
+                    const shatinTemp = data.temperature.data.find(item => item.place === '沙田')?.value || 25;
+                    const status = getGeneralStatus(shatinTemp);
+                    
+                    mainIconsContainer.innerHTML = `<span>${status.icon}</span>`;
+                    mainDescContainer.innerHTML = `<div>${status.desc} (目前並無警告生效)</div>`;
+                }
+
+                // 處理本港相對濕度
+                if (data.humidity && data.humidity.data.length > 0) {
+                    document.getElementById('hk-humidity').textContent = `${data.humidity.data[0].value}%`;
+                }
+
+                // 處理各區氣溫
+                const regionsContainer = document.getElementById('regions-container');
+                regionsContainer.innerHTML = '';
+                
+                targetPlaces.forEach(placeName => {
+                    const actualData = data.temperature.data.find(item => item.place === placeName);
+                    
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'data-item';
+                    
+                    let tempEmoji = "🌡️";
+                    if (actualData && actualData.value >= 30) tempEmoji = "🥵";
+                    if (actualData && actualData.value <= 15) tempEmoji = "🥶";
+
+                    if (actualData) {
+                        itemDiv.innerHTML = `
+                            <span class="place-name">📍 ${placeName}</span>
+                            <span class="value">${tempEmoji} ${actualData.value}°${actualData.unit}</span>
+                        `;
+                    } else {
+                        itemDiv.innerHTML = `<span class="place-name">📍 ${placeName}</span><span class="value error">無數據</span>`;
+                    }
+                    regionsContainer.appendChild(itemDiv);
+                });
+
+              })
+              .catch(error => {
+                console.error('讀取 API 失敗:', error);
+                document.getElementById('update-time').textContent = '連線失敗，等待下次刷新';
+              });
+        }
+
+        // 頁面第一次載入時立刻執行
+        fetchWeatherData();
+
+//💡 建立定時器：每 5 分鐘 (300,000 毫秒) 自動執行一次 fetchWeatherData
+        const FIVE_MINUTES = 5 * 60 * 1000;
+        setInterval(fetchWeatherData, FIVE_MINUTES);
+
+    </script>
+</body>
+</html>
