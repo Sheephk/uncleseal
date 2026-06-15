@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無邊框三欄表格</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f9f9f9;
+        }
+        table {
+            width: 100%;
+            /* 讓欄位寬度平均分配（可視需求調整） */
+            table-layout: fixed; 
+            /* 合併邊框設定，方便徹底隱藏 */
+            border-collapse: collapse; 
+            background-color: #ffffff;
+        }
+        th, td {
+            /* 移除所有邊框 */
+            border: none; 
+            /* 加上內距，讓字體周圍有留白，比較美觀 */
+            padding: 12px 15px; 
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        /* 超連結樣式設定，讓它看起來更像可以點擊的連結 */
+        td a {
+            color: #0066cc;
+            text-decoration: underline;
+        }
+        td a:hover {
+            color: #003366;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Forza Running Club</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>☀️ 夏日3K TT挑戰 2026 ☀️</th>
+                <th>FORZA Running Club 2026 會慶</th>
+                <th>天氣報告</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="https://nimble-cocada-367514.netlify.app/" target="_blank">報名表</a></td>
+                <td>電子產品</td>
+                <td><a href="weather(auto)_5mins.html">分區天氣報告</a></td>
+            </tr>
+            <tr>
+                <td>項目 B</td>
+                <td>辦公用品</td>
+                <td>需預購</td>
+            </tr>
+            <tr>
+                <td>項目 C</td>
+                <td>生活百貨</td>
+                <td>絕版清倉</td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>
