@@ -99,6 +99,16 @@
         .value { font-weight: 600; color: #007bff; display: flex; align-items: center; gap: 5px;}
         .place-name { display: flex; align-items: center; gap: 8px; }
         .error { color: #e74c3c; }
+
+        /* 🟢 新增：小海豹大叔頁尾樣式 */
+        .footer {
+            margin-top: 25px;
+            font-size: 1.20rem;
+            color: #95a5a6;
+            border-top: 1px solid #f1f1f1;
+            padding-top: 15px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -122,6 +132,10 @@
 
         <h3>各區即時氣溫</h3>
         <div id="regions-container"></div>
+
+        <div class="footer">
+            🦭 小海豹大叔
+        </div>
     </div>
 
     <script>
@@ -167,34 +181,27 @@
               .then(response => response.json())
               .then(data => {
                 
-                // 1. 更新畫面上顯示的時間
+                // 更新時間與提示文字（設定為 3 分鐘）
                 const now = new Date();
                 const timeString = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 document.getElementById('update-time').textContent = `${timeString} (每 5 分鐘自動刷新)`;
 
-                // 2. 處理大圖示與狀態 (警告優先邏輯)
+                // 處理大圖示與狀態 (警告優先邏輯)
                 const mainVisualBox = document.getElementById('main-visual-box');
                 const mainIconsContainer = document.getElementById('main-icons');
                 const mainDescContainer = document.getElementById('main-desc');
 
                 if (data.warningMessage && data.warningMessage.length > 0) {
-                    // 【狀況 A：當前有天氣警告】
                     mainVisualBox.classList.add('has-warnings');
-                    
-                    // 轉為陣列處理
                     let warnings = Array.isArray(data.warningMessage) ? data.warningMessage : [data.warningMessage];
                     
-                    // 提取所有警告的 Emoji 與文字
                     let iconsHtml = warnings.map(msg => `<span>${getWarningEmoji(msg)}</span>`).join('');
                     let descHtml = warnings.map(msg => `<div class="warning-text">⚠️ ${msg}</div>`).join('');
                     
                     mainIconsContainer.innerHTML = iconsHtml;
                     mainDescContainer.innerHTML = descHtml;
                 } else {
-                    // 【狀況 B：當前無天氣警告，回歸一般溫度狀態顯示】
                     mainVisualBox.classList.remove('has-warnings');
-                    
-                    // 拿沙田的氣溫當作基準參考
                     const shatinTemp = data.temperature.data.find(item => item.place === '沙田')?.value || 25;
                     const status = getGeneralStatus(shatinTemp);
                     
@@ -202,18 +209,16 @@
                     mainDescContainer.innerHTML = `<div>${status.desc} (目前並無警告生效)</div>`;
                 }
 
-                // 3. 處理本港相對濕度
+                // 處理本港相對濕度
                 if (data.humidity && data.humidity.data.length > 0) {
                     document.getElementById('hk-humidity').textContent = `${data.humidity.data[0].value}%`;
                 }
 
-                // 4. 處理各區氣溫
+                // 處理各區氣溫
                 const regionsContainer = document.getElementById('regions-container');
                 regionsContainer.innerHTML = '';
                 
                 targetPlaces.forEach(placeName => {
-                    const placeData = data.temperature.data.find(item => item.place === '沙田' ? placeName === '沙田' : item.place === placeName);
-                    // 修正天文台部分極少數名字比對
                     const actualData = data.temperature.data.find(item => item.place === placeName);
                     
                     const itemDiv = document.createElement('div');
@@ -241,10 +246,10 @@
               });
         }
 
-        // 💡 頁面第一次載入時，立刻執行一次
+        // 頁面第一次載入時立刻執行
         fetchWeatherData();
 
-        // 💡 建立定時器：每 5 分鐘 (300,000 毫秒) 自動執行一次 fetchWeatherData
+//💡 建立定時器：每 5 分鐘 (300,000 毫秒) 自動執行一次 fetchWeatherData
         const FIVE_MINUTES = 5 * 60 * 1000;
         setInterval(fetchWeatherData, FIVE_MINUTES);
 
