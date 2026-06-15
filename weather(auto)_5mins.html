@@ -181,7 +181,7 @@
               .then(response => response.json())
               .then(data => {
                 
-                // 更新時間與提示文字（設定為 3 分鐘）
+                // 更新時間與提示文字（設定為 5 分鐘）
                 const now = new Date();
                 const timeString = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 document.getElementById('update-time').textContent = `${timeString} (每 5 分鐘自動刷新)`;
