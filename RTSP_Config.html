@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>網頁編寫 RTSP 連結技術指南</title>
+    <style>
+        body {
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #fff;
+        }
+        h1 {
+            color: #1a365d;
+            border-bottom: 2px solid #2b6cb0;
+            padding-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+        h2 {
+            color: #2c5282;
+            margin-top: 30px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+            font-size: 20px;
+        }
+        h3 {
+            color: #4a5568;
+            font-size: 16px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        code {
+            font-family: Consolas, Monaco, monospace;
+            background-color: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #dd6b20;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #1a202c;
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .highlight-box {
+            background-color: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .warning-box {
+            background-color: #fffaf0;
+            border-left: 4px solid #dd6b20;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        /* 針對 PDF 列印優化 */
+        @media print {
+            body { padding: 0; max-width: 100%; }
+            pre { white-space: pre-wrap; word-wrap: break-word; background-color: #f7fafc; color: #000; border: 1px solid #cbd5e0; }
+            .highlight-box { background-color: #f7fafc; border-left-color: #718096; }
+            .warning-box { background-color: #f7fafc; border-left-color: #718096; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>網頁編寫 RTSP 連結技術指南</h1>
+    <p style="text-align: center; color: #718096; font-size: 14px;">主題：如何在網頁中嵌入與處理 IP Camera 的 RTSP 串流</p>
+
+    <div class="highlight-box">
+        <strong>原始需求網址：</strong><br>
+        <code>rtsp://rtsp:BGKlEhnR@192.168.15.24:554/av_stream/ch0</code>
+    </div>
+
+    <h2>一、 核心問題說明</h2>
+    <p>在標準的網頁（HTML5）中，如果直接使用普通的超連結標籤：</p>
+    <pre>&lt;a href="rtsp://rtsp:BGKlEhnR@192.168.15.24:554/av_stream/ch0"&gt;觀看攝影機畫面&lt;/a&gt;</pre>
+    <p><strong>結果：</strong>現代瀏覽器（如 Chrome、Edge、Safari、Firefox）基於安全與架構原因，<strong>原生並不支援直接播放 RTSP 串流</strong>。使用者點擊後，瀏覽器通常會毫無反應，或者彈出提示要求尋找外部應用程式（如 VLC）來開啟。</p>
+
+    <h2>二、 解決方案與實作方法</h2>
+
+    <h3>方案 1：直接呼叫本地 VLC 播放（免架伺服器，適合內部測試）</h3>
+    <p>如果只是想做一個簡單的超連結，讓內部人員點擊。可以直接把網址寫在 <code>&lt;a&gt;</code> 標籤。但觀看者需要複製該連結，貼到 <strong>VLC Media Player</strong>（媒體 -> 開啟網路串流）中觀看，或是電腦需要註冊 URL Protocol 偽協定來觸發本地播放器。</p>
+
+    <h3>方案 2：利用 MediaMTX 進行後端轉碼（推薦，可在網頁直接觀看）</h3>
+    <p>現行現代網頁的主流做法，是透過輕量級媒體伺服器將 RTSP 轉成瀏覽器看得懂的 <strong>WebRTC</strong> 或 <strong>HLS</strong> 訊號。</p>
+
+    <div class="warning-box">
+        <strong>MediaMTX 安裝與設定步驟：</strong>
+        <ul>
+            <li><strong>下載：</strong> 前往 GitHub 下載 <code>mediamtx_windows_amd64.zip</code> 並解壓縮。</li>
+            <li><strong>設定檔案：</strong> 打開 <code>mediamtx.yml</code>，捲動到最底部 <code>paths:</code> 區段，新增以下內容：
+<pre>paths:
+  cam1:
+    source: rtsp://rtsp:BGKlEhnR@192.168.15.24:554/av_stream/ch0</pre>
+            </li>
+            <li><strong>啟動：</strong> 雙擊執行 <code>mediamtx.exe</code>（請保持視窗開啟）。</li>
+        </ul>
+    </div>
+
+    <h3>方案 3：網頁前端嵌入程式碼</h3>
+    <p>當 MediaMTX 在後端轉碼成功後，你就可以直接在你的 HTML 網頁（例如：小海豹歡樂天地）中，使用 <code>&lt;iframe&gt;</code> 標籤將即時監控畫面嵌入進去：</p>
+
+    <pre>&lt;!-- 嵌入 WebRTC 畫面到網頁中（幾乎零延遲） --&gt;
+&lt;iframe 
+    src="http://localhost:8889/cam1/" 
+    width="640" 
+    height="480" 
+    frameborder="0" 
+    scrolling="no" 
+    allowfullscreen&gt;
+&lt;/iframe&gt;</pre>
+
+    <h2>三、 疑難排解（若 MediaMTX 無法執行）</h2>
+    <ul>
+        <li><strong>避免閃退：</strong> 不要直接雙擊打開，請先開啟 <strong>CMD (命令提示字元)</strong>，切換至該目錄並輸入 <code>.\mediamtx.exe</code> 執行，才能看清錯誤訊息。</li>
+        <li><strong>格式檢查：</strong> <code>mediamtx.yml</code> 的縮排<strong>絕對不能使用 Tab 鍵</strong>，只能使用「空白鍵」。</li>
+        <li><strong>連接埠衝突：</strong> 若出現 <code>address already in use</code>，代表預設的連接埠（如 8554、8888）被其他監控或直播軟體佔用，需進入 yml 檔修改對應的 Port。</li>
+    </ul>
+
+</body>
+</html>
