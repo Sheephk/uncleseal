@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧戶外安全監測儀</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            max-width: 360px;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .bear-alert-banner {
+            display: none;
+            background-color: #e74c3c;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            margin: -30px -30px 20px -30px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { background-color: #d35400; }
+            50% { background-color: #c0392b; }
+            100% { background-color: #d35400; }
+        }
+        .icon { font-size: 64px; margin-bottom: 10px; }
+        h1 { font-size: 22px; margin-bottom: 5px; color: #2c3e50; }
+        .location-tag { font-size: 14px; font-weight: bold; color: #34495e; margin-bottom: 20px; min-height: 20px; }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+        }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #bdc3c7; }
+        
+        .card {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-line;
+            display: none;
+        }
+        #weatherCard { background-color: #e8f4fd; border-left: 5px solid #3498db; }
+        #wildlifeCard { border-left: 5px solid #e67e22; }
+        .wildlife-danger { background-color: #fdf2e9; border-left-color: #e67e22 !important; }
+        .wildlife-safe { background-color: #f0f9eb; border-left-color: #67c23a !important; }
+        
+        #statusText {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .hour-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(52, 152, 219, 0.2);
+            padding: 6px 0;
+        }
+        .hour-row:last-child { border-bottom: none; }
+        
+        .disclaimer {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #bdc3c7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Mandatory EULA Pop-up Overlay UI */
+        .eula-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .eula-box {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 320px;
+            text-align: left;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .eula-box h2 { font-size: 18px; margin-top: 0; color: #c0392b; }
+        .eula-text {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #555;
+            height: 180px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .eula-btn { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<!-- Legal Gateway Screen -->
+<div id="eulaOverlay" class="eula-overlay">
+    <div class="eula-box">
+        <h2>法律條款與條件</h2>
+        <div class="eula-text">
+            <b>免責聲明與責任釋除 (豆子公司):</b><br><br>
+            點擊下方「我同意並接受」即表示您明確知悉並同意，本應用程式完全以「現況」提供，僅作為輔助資訊及總體環境參考之用。<br><br>
+            在實際野外環境中，切勿將本程式作為荒野導航、極端生存路線規劃或主動避開大型掠食野生動物的主要系統。<br><br>
+            在任何情況下，豆子公司、其開發人員或數據關聯公司，均不對因軟體執行錯誤、本地數據快取過期、API 通訊中斷或地形映射不準確而導致的任何直接、間接、意外或災難性身體傷害、財產損失或生命健康安全事故承擔法律責任。登山請務必閱讀當地步道告示牌，並以巡邏員的實體警告為準。
+        </div>
+        <button class="eula-btn" onclick="acceptEula()">我同意並接受</button>
+    </div>
+</div>
+
+<div class="container">
+    <div id="bearAlertBanner" class="bear-alert-banner">⚠️ 野生動物活躍警戒區</div>
+
+    <div id="mainIcon" class="icon">🌍</div>
+    <h1 id="appTitle">全球戶外監測儀</h1>
+    <div id="locationTag" class="location-tag">等待位置掃描...</div>
+    
+    <button id="scanBtn" onclick="initiateScan()">掃描周邊環境</button>
+    
+    <div id="statusText">點擊按鈕以分析您方圓 10 公里的網格。</div>
+    
+    <div id="weatherCard" class="card"></div>
+    <div id="wildlifeCard" class="card"></div>
+    
+    <div class="disclaimer">© 豆子公司</div>
+</div>
+
+<script>
+    const statusText = document.getElementById('statusText');
+    const scanBtn = document.getElementById('scanBtn');
+    const locationTag = document.getElementById('locationTag');
+    const weatherCard = document.getElementById('weatherCard');
+    const wildlifeCard = document.getElementById('wildlifeCard');
+    const mainIcon = document.getElementById('mainIcon');
+    const bearAlertBanner = document.getElementById('bearAlertBanner');
+
+    // EULA verification check
+    window.onload = function() {
+        if (localStorage.getItem("eula_accepted_douzi") === "true") {
+            document.getElementById("eulaOverlay").style.display = "none";
+        }
+    }
+
+    function acceptEula() {
+        localStorage.setItem("eula_accepted_douzi", "true");
+        document.getElementById("eulaOverlay").style.display = "none";
+    }
+
+    // Network timeout wrapper blueprint to defend against zero-signal trail lockups
+    function fetchWithTimeout(url, options, timeout = 10000) {
+        return Promise.race([
+            fetch(url, options),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('網路請求超時')), timeout))
+        ]);
+    }
+
+    async function initiateScan() {
+        if (!navigator.geolocation) {
+            statusText.innerHTML = "❌ 瀏覽器不支援地理位置定位。";
+            return;
+        }
+
+        updateUI("定位中...", true);
+        locationTag.innerHTML = "正在獲取座標映射...";
+        weatherCard.style.display = "none";
+        wildlifeCard.style.display = "none";
+        bearAlertBanner.style.display = "none";
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                try {
+                    statusText.innerHTML = "正在識別您所在的區域...";
+                    const locationData = await getLocationDetails(lat, lon);
+                    const country = locationData ? locationData.countryCode : "UNKNOWN";
+                    
+                    if (locationData && locationData.name) {
+                        locationTag.innerHTML = `📍 ${locationData.name}`;
+                    } else {
+                        locationTag.innerHTML = `📍 網格座標 [${lat.toFixed(2)}, ${lon.toFixed(2)}]`;
+                    }
+
+                    statusText.innerHTML = "正在解析本地微氣候數據...";
+                    await fetchRainForecast(lat, lon);
+                    
+                    // Global Wildlife Matrix Core Router
+                    statusText.innerHTML = "正在處理全球野生動物矩陣...";
+                    routeWildlifeAnalysis(country, lat, lon);
+                    
+                    updateUI("掃描完成", false);
+                } catch (error) {
+                    statusText.innerHTML = `❌ 掃描錯誤: ${error.message}`;
+                    weatherCard.className = "card wildlife-danger";
+                    weatherCard.innerHTML = `<b>⚠️ 網路訊號遺失錯誤</b><br>無法與遠端環境監測矩陣建立連線驗證。若您正處於收訊不佳的深山步道中，請完全依賴實體環境地標、路標，並攜帶類比防護裝備。`;
+                    weatherCard.style.display = "block";
+                    updateUI("掃描失敗", false);
+                }
+            },
+            (error) => {
+                statusText.innerHTML = `❌ 位置存取錯誤: ${error.message}`;
+                updateUI("掃描失敗", false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    async function getLocationDetails(lat, lon) {
+        try {
+            // Enforcing a 10-second request timeout boundary limit
+            const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {
+                headers: { 'User-Agent': 'RainRadarH5App_Douzi' }
+            }, 10000);
+            if (!res.ok) return null;
+            const data = await res.json();
+            
+            if (data.address) {
+                const name = data.address.suburb || data.address.borough || data.address.city || data.address.town || data.address.village;
+                return {
+                    name: name,
+                    countryCode: data.address.country_code.toUpperCase()
+                };
+            }
+            return null;
+        } catch {
+            return null; // Return null to allow processing to fall back gracefully onto strict coordinate boxes
+        }
+    }
+
+    async function fetchRainForecast(lat, lon) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=rain,precipitation_probability&forecast_days=1`;
+        const response = await fetchWithTimeout(url, {}, 10000);
+        if (!response.ok) throw new Error("無法連線至氣象 API 矩陣");
+        
+        const data = await response.json();
+        const times = data.hourly.time;
+        const rainAmount = data.hourly.rain;
+        const rainProb = data.hourly.precipitation_probability;
+
+        const now = new Date();
+        let rainExpected = false;
+        let reportHtml = "<b>🌤️ 區域降雨預報 (未來 3 小時)</b><br>";
+        let rowsHtml = "";
+        let count = 0;
+
+        for (let i = 0; i < times.length; i++) {
+            const forecastTime = new Date(times[i]);
+            const hourlyDiffMs = forecastTime - now;
+            const hourOffset = hourlyDiffMs / (1000 * 60 * 60);
+
+            if (hourOffset >= -1.0 && count < 3) {
+                count++;
+                const formattedTime = forecastTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const probability = rainProb[i];
+                const amount = rainAmount[i];
+
+                rowsHtml += `
+                    <div class="hour-row">
+                        <span><b>${formattedTime}</b></span>
+                        <span>💧 降雨機率 ${probability}% (${amount.toFixed(1)}mm)</span>
+                    </div>`;
+
+                if (probability > 30 || amount > 0.1) {
+                    rainExpected = true;
+                }
+            }
+        }
+
+        reportHtml += rowsHtml;
+
+        if (rainExpected) {
+            reportHtml += `<br>⚠️ <b style="color:#c0392b;">偵測到降水：</b>您的 10 公里網格內很可能會下雨。強烈建議攜帶雨具。`;
+        } else {
+            reportHtml += `<br>✅ <b style="color:#27ae60;">大氣狀況乾燥：</b>未來 3 小時內，您的 10 公里範圍內未偵測到降雨風險。`;
+        }
+
+        weatherCard.innerHTML = reportHtml;
+        weatherCard.style.display = "block";
+    }
+
+    // Global Wildlife Routing Core Switch Engine
+    function routeWildlifeAnalysis(country, lat, lon) {
+        switch(country) {
+            case "JP":
+                locationTag.innerHTML += " (🇯🇵)";
+                mainIcon.innerHTML = "🐻";
+                triggerJapanBearAlert(lat, lon);
+                break;
+                
+            case "US":
+            case "CA":
+                locationTag.innerHTML += country === "US" ? " (🇺🇸)" : " (🇨🇦)";
+                mainIcon.innerHTML = "🐻";
+                triggerNorthAmericaAlert(lat, lon);
+                break;
+                
+            case "AU":
+                locationTag.innerHTML += " (🇦🇺)";
+                triggerAustraliaAlert(lat, lon);
+                break;
+                
+            default:
+                // Fallback check: If reverse geocoding failed due to spotty cell service but raw GPS coords match North America
+                if (lat > 24.0 && lat < 75.0 && lon > -170.0 && lon < -50.0) {
+                    locationTag.innerHTML += " (北美網格)";
+                    mainIcon.innerHTML = "🐻";
+                    triggerNorthAmericaAlert(lat, lon);
+                } else {
+                    mainIcon.innerHTML = "☀️";
+                    triggerClearWildlifeAlert();
+                }
+        }
+    }
+
+    function triggerJapanBearAlert(lat, lon) {
+        let title = "⚠️ 日本：亞洲黑熊活躍警戒區";
+        let subSpecies = "亞洲黑熊 (ツキノワグマ)";
+        let level = "⚠️ 中度風險 (覓食次分區)";
+        let protocols = "• 在裝備包上掛上高共振的防熊鈴 (くま鈴)。\n• 避免在黎明/黃昏的覓食高峰期前往密林單軌山路。";
+        
+        if (lat >= 41.2) { 
+            title = "🚨 北海道：棕熊緊急警戒區";
+            subSpecies = "烏蘇里棕熊 (ヒグマ)";
+            level = "🚨 關鍵高風險 (頂級掠食者領地)";
+            protocols = "• 務必將具備實戰防護力的防熊辣椒噴霧掛在腰間隨手可得處。\n• 將所有廚餘及有機垃圾完整打包帶走——切勿掩埋碎屑。";
+        }
+
+        bearAlertBanner.innerText = title;
+        bearAlertBanner.style.display = "block";
+
+        wildlifeCard.className = "card wildlife-danger";
+        wildlifeCard.innerHTML = `<b>🐻 超在地防熊安全警告：</b>
+        <b>目標亞種：</b> ${subSpecies}
+        <b>危險等級：</b> <span style="font-weight:bold; color:#c0392b">${level}</span>
+        
+        <b>戰術應變守則：</b>
+        ${protocols}`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function triggerNorthAmericaAlert(lat, lon) {
+        let title = "⚠️ 北美：熊類活躍棲息警戒區";
+        let subSpecies = "美洲黑熊 (Ursus americanus)";
+        let level = "⚠️ 中度一般風險";
+        let protocols = "• 健行時持續發出人聲，以防驚嚇到野生動物。\n• 若遭遇逼近，請站穩立場、讓自己看起來高大，若發生接觸請激進反擊。";
+
+        // Rocky Mountain / Pacific Northwest Grizzly Box Approximation
+        if (lat > 43.0 && lon < -110.0) {
+            title = "🚨 關鍵警戒：灰熊頂級掠食者向量區";
+            subSpecies = "灰熊 (Ursus arctos horribilis)";
+            level = "🚨 關鍵暴露風險";
+            protocols = "• 將專業防熊噴霧保持在解開狀態，並在腰帶環上隨時待命。\n• 若灰熊發動衝鋒並發生接觸，切勿反擊。請立刻俯臥貼地、保護頸部並裝死。";
+        }
+
+        bearAlertBanner.innerText = title;
+        bearAlertBanner.style.display = "block";
+
+        wildlifeCard.className = "card wildlife-danger";
+        wildlifeCard.innerHTML = `<b>🌲 北美野生動物注意告示：</b>
+        <b>目標亞種：</b> ${subSpecies}
+        <b>危險等級：</b> <span style="font-weight:bold; color:#c0392b">${level}</span>
+        
+        <b>戰術應變守則：</b>
+        ${protocols}`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function triggerAustraliaAlert(lat, lon) {
+        // Evaluate if user is operating inside the tropical Northern Territory / Queensland line
+        if (lat < -23.5) {
+            mainIcon.innerHTML = "🐊";
+            bearAlertBanner.innerText = "🚨 澳洲：熱帶海洋與頂級河口生態危害區";
+            bearAlertBanner.style.display = "block";
+            
+            wildlifeCard.className = "card wildlife-danger";
+            wildlifeCard.innerHTML = `<b>🐊 熱帶澳洲野生動物注意告示：</b>
+            <b>目標向量：</b> 鹹水鱷 與 箱形水母 (刺絲胞動物)
+            <b>危險等級：</b> <span style="font-weight:bold; color:#c0392b">🚨 活躍掠食者區域</span>
+            
+            <b>戰術應變守則：</b>
+            • 絕不要在未受監控的北部河口、潮汐三角洲或深水潭中游泳。\n• 營地座標應設置在距離高潮線標記至少 50 公尺以上的內陸。`;
+            wildlifeCard.style.display = "block";
+        } else {
+            mainIcon.innerHTML = "☀️";
+            triggerClearWildlifeAlert();
+        }
+    }
+
+    function triggerClearWildlifeAlert() {
+        bearAlertBanner.style.display = "none";
+        wildlifeCard.className = "card wildlife-safe";
+        wildlifeCard.innerHTML = `<b>🛡️ 野生動物狀態：安全無虞</b>
+        目前座標架構內無適用之活躍大型掠食動物警告。`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function updateUI(btnText, loading) {
+        scanBtn.disabled = loading;
+        scanBtn.innerText = btnText;
+    }
+</script>
+
+</body>
+</html>

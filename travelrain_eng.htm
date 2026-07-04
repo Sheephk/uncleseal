@@ -1,0 +1,444 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Outdoor Safety Monitor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            max-width: 360px;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .bear-alert-banner {
+            display: none;
+            background-color: #e74c3c;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            margin: -30px -30px 20px -30px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { background-color: #d35400; }
+            50% { background-color: #c0392b; }
+            100% { background-color: #d35400; }
+        }
+        .icon { font-size: 64px; margin-bottom: 10px; }
+        h1 { font-size: 22px; margin-bottom: 5px; color: #2c3e50; }
+        .location-tag { font-size: 14px; font-weight: bold; color: #34495e; margin-bottom: 20px; min-height: 20px; }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+        }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #bdc3c7; }
+        
+        .card {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-line;
+            display: none;
+        }
+        #weatherCard { background-color: #e8f4fd; border-left: 5px solid #3498db; }
+        #wildlifeCard { border-left: 5px solid #e67e22; }
+        .wildlife-danger { background-color: #fdf2e9; border-left-color: #e67e22 !important; }
+        .wildlife-safe { background-color: #f0f9eb; border-left-color: #67c23a !important; }
+        
+        #statusText {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .hour-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(52, 152, 219, 0.2);
+            padding: 6px 0;
+        }
+        .hour-row:last-child { border-bottom: none; }
+        
+        .disclaimer {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #bdc3c7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Mandatory EULA Pop-up Overlay UI */
+        .eula-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(44, 62, 80, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .eula-box {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 320px;
+            text-align: left;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .eula-box h2 { font-size: 18px; margin-top: 0; color: #c0392b; }
+        .eula-text {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #555;
+            height: 180px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+        .eula-btn { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<!-- Legal Gateway Screen -->
+<div id="eulaOverlay" class="eula-overlay">
+    <div class="eula-box">
+        <h2>Legal Terms & Conditions</h2>
+        <div class="eula-text">
+            <b>LIABILITY RELEASE & DISCLAIMER (豆子公司):</b><br><br>
+            By tapping 'I Accept' below, you explicitly acknowledge that this application is provided entirely "as-is" for supplemental informational and macro-environmental reference loops only.<br><br>
+            This code must NEVER be utilized as a primary system for wilderness navigation, extreme survival routing, or active large-predator wildlife avoidance in field environments.<br><br>
+            In no circumstance shall 豆子公司, its developers, or data affiliates be held legally liable for any direct, indirect, accidental, or catastrophic bodily injuries, personal property damage, or loss of life resulting from runtime software failures, stale localized data caching, API communication dropouts, or inaccurate terrain mapping outputs. Always read local trail signage and defer to physical ranger warnings.
+        </div>
+        <button class="eula-btn" onclick="acceptEula()">I Accept & Agree</button>
+    </div>
+</div>
+
+<div class="container">
+    <div id="bearAlertBanner" class="bear-alert-banner">⚠️ WILDLIFE ACTIVE WARNING ZONE</div>
+
+    <div id="mainIcon" class="icon">🌍</div>
+    <h1 id="appTitle">Global Outdoor Monitor</h1>
+    <div id="locationTag" class="location-tag">Awaiting Location Scan...</div>
+    
+    <button id="scanBtn" onclick="initiateScan()">Scan Environment</button>
+    
+    <div id="statusText">Press to analyze your 10km grid.</div>
+    
+    <div id="weatherCard" class="card"></div>
+    <div id="wildlifeCard" class="card"></div>
+    
+    <div class="disclaimer">© 豆子公司</div>
+</div>
+
+<script>
+    const statusText = document.getElementById('statusText');
+    const scanBtn = document.getElementById('scanBtn');
+    const locationTag = document.getElementById('locationTag');
+    const weatherCard = document.getElementById('weatherCard');
+    const wildlifeCard = document.getElementById('wildlifeCard');
+    const mainIcon = document.getElementById('mainIcon');
+    const bearAlertBanner = document.getElementById('bearAlertBanner');
+
+    // EULA verification check
+    window.onload = function() {
+        if (localStorage.getItem("eula_accepted_douzi") === "true") {
+            document.getElementById("eulaOverlay").style.display = "none";
+        }
+    }
+
+    function acceptEula() {
+        localStorage.setItem("eula_accepted_douzi", "true");
+        document.getElementById("eulaOverlay").style.display = "none";
+    }
+
+    // Network timeout wrapper blueprint to defend against zero-signal trail lockups
+    function fetchWithTimeout(url, options, timeout = 10000) {
+        return Promise.race([
+            fetch(url, options),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Network request timed out')), timeout))
+        ]);
+    }
+
+    async function initiateScan() {
+        if (!navigator.geolocation) {
+            statusText.innerHTML = "❌ Geolocation unsupported by browser.";
+            return;
+        }
+
+        updateUI("Locating...", true);
+        locationTag.innerHTML = "Fetching coordinate mapping...";
+        weatherCard.style.display = "none";
+        wildlifeCard.style.display = "none";
+        bearAlertBanner.style.display = "none";
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                try {
+                    statusText.innerHTML = "Identifying your region...";
+                    const locationData = await getLocationDetails(lat, lon);
+                    const country = locationData ? locationData.countryCode : "UNKNOWN";
+                    
+                    if (locationData && locationData.name) {
+                        locationTag.innerHTML = `📍 ${locationData.name}`;
+                    } else {
+                        locationTag.innerHTML = `📍 Grid [${lat.toFixed(2)}, ${lon.toFixed(2)}]`;
+                    }
+
+                    statusText.innerHTML = "Parsing local microclimate data...";
+                    await fetchRainForecast(lat, lon);
+                    
+                    // Global Wildlife Matrix Core Router
+                    statusText.innerHTML = "Processing global wildlife matrix...";
+                    routeWildlifeAnalysis(country, lat, lon);
+                    
+                    updateUI("Scan Complete", false);
+                } catch (error) {
+                    statusText.innerHTML = `❌ Scan Error: ${error.message}`;
+                    weatherCard.className = "card wildlife-danger";
+                    weatherCard.innerHTML = `<b>⚠️ NETWORK SIGNAL LOSS ERROR</b><br>Unable to build verification links with remote environmental arrays. If you are deep on a single-track trail, rely exclusively on physical environment landmarks, path markers, and carry analog precautions.`;
+                    weatherCard.style.display = "block";
+                    updateUI("Scan Failed", false);
+                }
+            },
+            (error) => {
+                statusText.innerHTML = `❌ Location Access Error: ${error.message}`;
+                updateUI("Scan Failed", false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    async function getLocationDetails(lat, lon) {
+        try {
+            // Enforcing a 10-second request timeout boundary limit
+            const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`, {
+                headers: { 'User-Agent': 'RainRadarH5App_Douzi' }
+            }, 10000);
+            if (!res.ok) return null;
+            const data = await res.json();
+            
+            if (data.address) {
+                const name = data.address.suburb || data.address.borough || data.address.city || data.address.town || data.address.village;
+                return {
+                    name: name,
+                    countryCode: data.address.country_code.toUpperCase()
+                };
+            }
+            return null;
+        } catch {
+            return null; // Return null to allow processing to fall back gracefully onto strict coordinate boxes
+        }
+    }
+
+    async function fetchRainForecast(lat, lon) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=rain,precipitation_probability&forecast_days=1`;
+        const response = await fetchWithTimeout(url, {}, 10000);
+        if (!response.ok) throw new Error("Weather API array unreachable");
+        
+        const data = await response.json();
+        const times = data.hourly.time;
+        const rainAmount = data.hourly.rain;
+        const rainProb = data.hourly.precipitation_probability;
+
+        const now = new Date();
+        let rainExpected = false;
+        let reportHtml = "<b>🌤️ Localized Rain Forecast (Next 3h)</b><br>";
+        let rowsHtml = "";
+        let count = 0;
+
+        for (let i = 0; i < times.length; i++) {
+            const forecastTime = new Date(times[i]);
+            const hourlyDiffMs = forecastTime - now;
+            const hourOffset = hourlyDiffMs / (1000 * 60 * 60);
+
+            if (hourOffset >= -1.0 && count < 3) {
+                count++;
+                const formattedTime = forecastTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const probability = rainProb[i];
+                const amount = rainAmount[i];
+
+                rowsHtml += `
+                    <div class="hour-row">
+                        <span><b>${formattedTime}</b></span>
+                        <span>💧 ${probability}% chance (${amount.toFixed(1)}mm)</span>
+                    </div>`;
+
+                if (probability > 30 || amount > 0.1) {
+                    rainExpected = true;
+                }
+            }
+        }
+
+        reportHtml += rowsHtml;
+
+        if (rainExpected) {
+            reportHtml += `<br>⚠️ <b style="color:#c0392b;">Precipitation Detected:</b> Rain is likely within your 10km grid. It is highly recommended to pack rain gear.`;
+        } else {
+            reportHtml += `<br>✅ <b style="color:#27ae60;">Dry Atmospheric Conditions:</b> Zero rain risk detected within your 10km bubble for the next 3 hours.`;
+        }
+
+        weatherCard.innerHTML = reportHtml;
+        weatherCard.style.display = "block";
+    }
+
+    // Global Wildlife Routing Core Switch Engine
+    function routeWildlifeAnalysis(country, lat, lon) {
+        switch(country) {
+            case "JP":
+                locationTag.innerHTML += " (🇯🇵)";
+                mainIcon.innerHTML = "🐻";
+                triggerJapanBearAlert(lat, lon);
+                break;
+                
+            case "US":
+            case "CA":
+                locationTag.innerHTML += country === "US" ? " (🇺🇸)" : " (🇨🇦)";
+                mainIcon.innerHTML = "🐻";
+                triggerNorthAmericaAlert(lat, lon);
+                break;
+                
+            case "AU":
+                locationTag.innerHTML += " (🇦🇺)";
+                triggerAustraliaAlert(lat, lon);
+                break;
+                
+            default:
+                // Fallback check: If reverse geocoding failed due to spotty cell service but raw GPS coords match North America
+                if (lat > 24.0 && lat < 75.0 && lon > -170.0 && lon < -50.0) {
+                    locationTag.innerHTML += " (Grid US/CAN)";
+                    mainIcon.innerHTML = "🐻";
+                    triggerNorthAmericaAlert(lat, lon);
+                } else {
+                    mainIcon.innerHTML = "☀️";
+                    triggerClearWildlifeAlert();
+                }
+        }
+    }
+
+    function triggerJapanBearAlert(lat, lon) {
+        let title = "⚠️ JPN: ASIATIC BLACK BEAR WARNING ZONE";
+        let subSpecies = "Asiatic Black Bear (ツキノワグマ)";
+        let level = "⚠️ MODERATE RISK (Foraging Subzone)";
+        let protocols = "• Attach a high-resonance bear bell (くま鈴) to your gear pack.\n• Avoid dense single-track mountain trails during dawn/dusk feeding windows.";
+        
+        if (lat >= 41.2) { 
+            title = "🚨 HOKKAIDO: BROWN BEAR EMERGENCY ZONE";
+            subSpecies = "Ussuri Brown Bear (ヒグマ)";
+            level = "🚨 CRITICAL HIGH RISK (Apex Predator Territory)";
+            protocols = "• Ensure active counter-bear capsaicin spray is holstered immediately on your hip.\n• Pack out all organic food waste completely—do not bury scraps.";
+        }
+
+        bearAlertBanner.innerText = title;
+        bearAlertBanner.style.display = "block";
+
+        wildlifeCard.className = "card wildlife-danger";
+        wildlifeCard.innerHTML = `<b>🐻 Hyperlocal Bear Protection Warning:</b>
+        <b>Target Subspecies:</b> ${subSpecies}
+        <b>Danger Level:</b> <span style="font-weight:bold; color:#c0392b">${level}</span>
+        
+        <b>Tactical Protocols:</b>
+        ${protocols}`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function triggerNorthAmericaAlert(lat, lon) {
+        let title = "⚠️ NA: ACTIVE BEAR HABITAT ZONE";
+        let subSpecies = "American Black Bear (Ursus americanus)";
+        let level = "⚠️ MODERATE GENERAL RISK";
+        let protocols = "• Make consistent vocal noise while hiking to prevent startling wildlife.\n• If approached, stand ground, look massive, and fight back aggressively if contact occurs.";
+
+        // Rocky Mountain / Pacific Northwest Grizzly Box Approximation
+        if (lat > 43.0 && lon < -110.0) {
+            title = "🚨 CRITICAL: GRIZZLY APEX PREDATOR VECTOR";
+            subSpecies = "Grizzly Bear (Ursus arctos horribilis)";
+            level = "🚨 CRITICAL EXPOSURE RISK";
+            protocols = "• Keep professional counter-bear spray unclipped and ready on your waist belt loop.\n• If a grizzly charges and makes contact, DO NOT fight back. Drop flat on your stomach, protect your neck, and play dead.";
+        }
+
+        bearAlertBanner.innerText = title;
+        bearAlertBanner.style.display = "block";
+
+        wildlifeCard.className = "card wildlife-danger";
+        wildlifeCard.innerHTML = `<b>🌲 North American Wildlife Advisory:</b>
+        <b>Target Subspecies:</b> ${subSpecies}
+        <b>Danger Level:</b> <span style="font-weight:bold; color:#c0392b">${level}</span>
+        
+        <b>Tactical Protocols:</b>
+        ${protocols}`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function triggerAustraliaAlert(lat, lon) {
+        // Evaluate if user is operating inside the tropical Northern Territory / Queensland line
+        if (lat < -23.5) {
+            mainIcon.innerHTML = "🐊";
+            bearAlertBanner.innerText = "🚨 AUS: TROPICAL MARINE & APEX ESTUARINE HAZARD";
+            bearAlertBanner.style.display = "block";
+            
+            wildlifeCard.className = "card wildlife-danger";
+            wildlifeCard.innerHTML = `<b>🐊 Tropical Australia Wildlife Advisory:</b>
+            <b>Target Vector:</b> Saltwater Crocodiles & Box Jellyfish (Stingers)
+            <b>Danger Level:</b> <span style="font-weight:bold; color:#c0392b">🚨 ACTIVE PREDATOR SECTOR</span>
+            
+            <b>Tactical Protocols:</b>
+            • Never swim in unpatrolled northern river mouths, tidal estuaries, or deep pools.\n• Set up inland camp coordinates at least 50 meters back from the high-tide line marker.`;
+            wildlifeCard.style.display = "block";
+        } else {
+            mainIcon.innerHTML = "☀️";
+            triggerClearWildlifeAlert();
+        }
+    }
+
+    function triggerClearWildlifeAlert() {
+        bearAlertBanner.style.display = "none";
+        wildlifeCard.className = "card wildlife-safe";
+        wildlifeCard.innerHTML = `<b>🛡️ Wildlife Status: Clear</b>
+        No active large-predator wildlife warnings apply to this coordinate framework.`;
+        wildlifeCard.style.display = "block";
+    }
+
+    function updateUI(btnText, loading) {
+        scanBtn.disabled = loading;
+        scanBtn.innerText = btnText;
+    }
+</script>
+
+</body>
+</html>
